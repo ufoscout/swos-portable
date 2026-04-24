@@ -42,7 +42,7 @@ This is a fork of [swos-port](https://github.com/zlatkok/swos-port) by **zlatkok
 
 ```bash
 sudo apt install cmake g++ pkg-config \
-    libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev
+    libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libminizip-dev
 ```
 
 **Build:**

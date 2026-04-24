@@ -462,9 +462,11 @@ else()
         PkgConfig::SDL2_mixer
     )
 
-    # minizip-ng is not available as a system package; stub out the functions.
-    # Commentary audio loaded from zip archives will be silently unavailable.
+    # Use minizip 1.x (libminizip-dev) via an adapter that maps the minizip-ng 2.x API.
+    # minizip-ng itself is only available from Ubuntu 26.04+.
+    pkg_check_modules(MINIZIP REQUIRED IMPORTED_TARGET minizip)
     target_sources(swos-port PRIVATE ${CMAKE_SOURCE_DIR}/3rd-party/minizip-ng-stub.cpp)
+    target_link_libraries(swos-port PRIVATE PkgConfig::MINIZIP)
 endif()
 
 # Use static runtime
