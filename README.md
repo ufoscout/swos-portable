@@ -28,35 +28,70 @@ This is a fork of [swos-port](https://github.com/zlatkok/swos-port) by **zlatkok
 
 ## Building
 
-### Requirements
+### Windows
 
-- Windows (tested on Windows 10/11)
-- That's it.
-
-### Build Steps
+**Requirements:** Windows 10/11. That's it — the build script uses the bundled MinGW compiler and CMake.
 
 1. Clone or download this repository
 2. Double-click `build.bat`
-3. Find your executable in `bin/swos-port-Win32-Release.exe`
+3. Find your executable at `bin\swos-port-Win32-Release.exe`
 
-The build script uses the bundled MinGW compiler and CMake. No external tools or configuration needed.
+### Linux
+
+**Requirements:**
+
+```bash
+sudo apt install cmake g++ pkg-config \
+    libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev
+```
+
+**Build:**
+
+```bash
+./build.sh
+```
+
+The binary is produced at `bin/swos-port-x64-Release`.
+
+**Run:**
+
+```bash
+./bin/swos-port-x64-Release --swos-dir=/path/to/SensibleWorldOfSoccer9697/
+```
+
+You need the original SWOS 96/97 game data files. On Linux all filenames in the game directory must be **lowercase**. If your files are uppercase (as extracted from the original CD), rename them with:
+
+```bash
+find /path/to/SensibleWorldOfSoccer9697 -depth -exec \
+  sh -c 'mv -- "$1" "$(dirname "$1")/$(basename "$1" | tr "[:upper:]" "[:lower:]")"' \
+  _ {} \;
+```
+
+To remove all build artifacts:
+
+```bash
+./clean.sh
+```
 
 ## Project Structure
 
 ```
 swos-portable/
 ├── 3rd-party/
-│   ├── mingw32/      # Pre-compiled MinGW libraries (SDL2, SDL2_image, SDL2_mixer, minizip)
-│   ├── SimpleIni/    # Header-only INI parser
-│   └── dirent/       # POSIX directory functions for Windows
-├── src/              # Game source code (~280k lines)
+│   ├── mingw32/           # Pre-compiled MinGW libraries (SDL2, SDL2_image, SDL2_mixer, minizip)
+│   ├── SimpleIni/         # Header-only INI parser
+│   ├── dirent/            # POSIX directory functions for Windows
+│   └── minizip-ng-stub.cpp  # Stub minizip-ng implementation for Linux (commentary audio unsupported)
+├── src/                   # Game source code (~280k lines)
 ├── tmp/
-│   └── swos-cpp-gen-32/  # Generated VM code (~240k lines)
+│   └── swos-cpp-gen-32/   # Generated VM code (~240k lines)
 ├── tools/
-│   ├── cmake/        # Bundled CMake 3.28
-│   └── mingw32/      # Bundled MinGW GCC
-├── build.bat         # One-click build script
-└── CMakeLists.txt    # CMake configuration
+│   ├── cmake/             # Bundled CMake 3.28 (Windows only)
+│   └── mingw32/           # Bundled MinGW GCC (Windows only)
+├── build.bat              # Windows build script
+├── build.sh               # Linux build script
+├── clean.sh               # Removes Linux build artifacts
+└── CMakeLists.txt         # CMake configuration
 ```
 
 ## Technical Details
