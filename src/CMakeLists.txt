@@ -120,7 +120,6 @@ set(SOURCES_GAME_UPDATEPLAYERS
 )
 
 set(SOURCES_MENUS
-    ${CMAKE_CURRENT_SOURCE_DIR}/menus/careerMenu.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/menus/continueAbortMenu.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/menus/continueMenu.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/menus/mainMenu.cpp
@@ -243,7 +242,11 @@ set(ALL_SOURCES
 )
 
 # Create the executable
-add_executable(swos-port WIN32 ${ALL_SOURCES})
+if(WIN32)
+    add_executable(swos-port WIN32 ${ALL_SOURCES})
+else()
+    add_executable(swos-port ${ALL_SOURCES})
+endif()
 
 # Include directories
 target_include_directories(swos-port PRIVATE
@@ -278,24 +281,27 @@ target_include_directories(swos-port PRIVATE
     ${CMAKE_SOURCE_DIR}/tmp/swos-cpp-gen-${PLATFORM_ARCH}
     ${CMAKE_SOURCE_DIR}/tmp/mnu2h
     ${CMAKE_SOURCE_DIR}/tmp/assets
-    # 3rd-party includes (MinGW)
-    ${CMAKE_SOURCE_DIR}/3rd-party/mingw32/include
-    ${CMAKE_SOURCE_DIR}/3rd-party/mingw32/include/SDL2
+    # 3rd-party includes
     ${CMAKE_SOURCE_DIR}/3rd-party/SimpleIni
-    ${CMAKE_SOURCE_DIR}/3rd-party/dirent
+    # Bundled minizip-ng headers (SDL2 subdir excluded to avoid conflict with system SDL2 on Linux)
+    ${CMAKE_SOURCE_DIR}/3rd-party/mingw32/include
+    # Windows-only: bundled MinGW SDL2 headers and dirent (Linux uses system headers)
+    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/3rd-party/mingw32/include/SDL2>
+    $<$<BOOL:${WIN32}>:${CMAKE_SOURCE_DIR}/3rd-party/dirent>
 )
 
 # Preprocessor definitions
 target_compile_definitions(swos-port PRIVATE
     DISABLE_ALIGNMENT_CHECKS=1
     SWOS_VM
-    NOMINMAX
-    _CRT_SECURE_NO_WARNINGS
     $<$<CONFIG:Debug>:DEBUG>
     $<$<CONFIG:Debug>:_DEBUG>
     $<$<CONFIG:Release>:NDEBUG>
     $<$<BOOL:${SWOS_EMBED_ASSETS}>:EMBED_ASSETS>
 )
+if(WIN32)
+    target_compile_definitions(swos-port PRIVATE NOMINMAX _CRT_SECURE_NO_WARNINGS)
+endif()
 
 # Compiler options
 if(MSVC)
@@ -359,8 +365,10 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
         PROPERTIES COMPILE_FLAGS "-w"
     )
 
-    # Static linking for MinGW
-    target_link_options(swos-port PRIVATE -static -static-libgcc -static-libstdc++)
+    # Static linking for MinGW (Windows only)
+    if(WIN32)
+        target_link_options(swos-port PRIVATE -static -static-libgcc -static-libstdc++)
+    endif()
 endif()
 
 # Precompiled headers
@@ -377,86 +385,86 @@ endif()
 
 target_compile_definitions(swos-port PRIVATE SDL_MAIN_HANDLED)
 
-# Library linking - different paths for MinGW vs MSVC
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    # MinGW libraries
-    set(MINGW_LIB_DIR "${CMAKE_SOURCE_DIR}/3rd-party/mingw32")
+# Library linking
+if(WIN32)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # MinGW libraries
+        set(MINGW_LIB_DIR "${CMAKE_SOURCE_DIR}/3rd-party/mingw32")
 
-    target_include_directories(swos-port PRIVATE
-        ${MINGW_LIB_DIR}/include
-        ${MINGW_LIB_DIR}/include/SDL2
-    )
+        target_link_directories(swos-port PRIVATE
+            ${MINGW_LIB_DIR}/lib
+        )
 
-    target_link_directories(swos-port PRIVATE
-        ${MINGW_LIB_DIR}/lib
-    )
+        target_link_libraries(swos-port PRIVATE
+            SDL2
+            SDL2main
+            SDL2_image
+            SDL2_mixer
+            minizip
+            bcrypt
+            winmm
+            imm32
+            version
+            setupapi
+            cfgmgr32
+            ole32
+            oleaut32
+            gdi32
+            user32
+        )
+    else()
+        # MSVC libraries (from 3rd-party/static/)
+        set(STATIC_LIB_DIR "${CMAKE_SOURCE_DIR}/3rd-party/static/${LIB_PLATFORM}")
 
-    target_link_libraries(swos-port PRIVATE
-        # SDL2 static (MinGW naming: libSDL2.a)
-        SDL2
-        SDL2main
-        # SDL2_image static
-        SDL2_image
-        # SDL2_mixer static (includes audio codecs)
-        SDL2_mixer
-        # Minizip
-        minizip
-        # Windows crypto for minizip
-        bcrypt
-        # Windows system libraries
-        winmm
-        imm32
-        version
-        setupapi
-        cfgmgr32
-        ole32
-        oleaut32
-        gdi32
-        user32
-    )
+        target_include_directories(swos-port PRIVATE
+            ${CMAKE_SOURCE_DIR}/3rd-party/static/include
+        )
+
+        target_link_directories(swos-port PRIVATE
+            ${STATIC_LIB_DIR}/lib
+        )
+
+        target_link_libraries(swos-port PRIVATE
+            SDL2-static
+            SDL2main
+            SDL2_image-static
+            SDL2_mixer-static
+            minizip
+            zlib
+            bz2
+            lzma
+            zstd
+            libpng16
+            modplug
+            ogg
+            vorbis
+            vorbisfile
+            libwavpack
+            libxmp-static
+            winmm
+            imm32
+            version
+            setupapi
+            cfgmgr32
+            bcrypt
+        )
+    endif()
 else()
-    # MSVC libraries (from 3rd-party/static/)
-    set(STATIC_LIB_DIR "${CMAKE_SOURCE_DIR}/3rd-party/static/${LIB_PLATFORM}")
-
-    target_include_directories(swos-port PRIVATE
-        ${CMAKE_SOURCE_DIR}/3rd-party/static/include
-    )
-
-    target_link_directories(swos-port PRIVATE
-        ${STATIC_LIB_DIR}/lib
-    )
+    # Linux / macOS: use system SDL2 via pkg-config
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+    pkg_check_modules(SDL2_image REQUIRED IMPORTED_TARGET SDL2_image)
+    pkg_check_modules(SDL2_mixer REQUIRED IMPORTED_TARGET SDL2_mixer)
 
     target_link_libraries(swos-port PRIVATE
-        # SDL2 static
-        SDL2-static
-        SDL2main
-        # SDL2_image static
-        SDL2_image-static
-        # SDL2_mixer static
-        SDL2_mixer-static
-        # Compression libraries
-        minizip
-        zlib
-        bz2
-        lzma
-        zstd
-        # Image format libraries
-        libpng16
-        # Audio codec libraries
-        modplug
-        ogg
-        vorbis
-        vorbisfile
-        libwavpack
-        libxmp-static
-        # Windows system libraries
-        winmm
-        imm32
-        version
-        setupapi
-        cfgmgr32
-        bcrypt
+        PkgConfig::SDL2
+        PkgConfig::SDL2_image
+        PkgConfig::SDL2_mixer
     )
+
+    # minizip-ng is not available as a system package; stub out the functions.
+    # Commentary audio loaded from zip archives will be silently unavailable.
+    target_sources(swos-port PRIVATE ${CMAKE_SOURCE_DIR}/3rd-party/minizip-ng-stub.cpp)
 endif()
 
 # Use static runtime
@@ -465,7 +473,7 @@ set_property(TARGET swos-port PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CO
 
 # Output configuration
 set_target_properties(swos-port PROPERTIES
-    OUTPUT_NAME "swos-port-$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>,x64,Win32>-$<CONFIG>"
+    OUTPUT_NAME "swos-port-$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>,x64,x86>-$<CONFIG>"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
     # Ensure consistent output directories across configurations
     RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin"

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <climits>
 #include <cmath>
 #include <iostream>
 #include <cstdarg>
@@ -56,12 +57,29 @@ constexpr int kAlphaMask = 0xff000000;
 
 using namespace std::string_literals;
 
-#ifndef _WIN64
+// PTR32: on 32-bit Windows, pointers fit in 32-bit registers and are stored directly.
+// On 64-bit or non-Windows, the offset-based VM memory model is used instead.
+#if defined(_WIN32) && !defined(_WIN64)
 # define PTR32
-static_assert(sizeof(void *) == 4, "Define pointer size");
 #endif
 
+#ifndef _WIN32
+// Linux/macOS: POSIX equivalents for Windows CRT string functions
+#include <strings.h>
+#define _stricmp  strcasecmp
+#define _strnicmp strncasecmp
+
+// Linux/macOS: provide strncpy_s (Windows CRT function not available on POSIX)
+static inline int strncpy_s(char *dest, const char *src, size_t count)
+{
+    if (!dest || !count) return 0;
+    strncpy(dest, src, count);
+    dest[count - 1] = '\0';
+    return 0;
+}
+#else
 #define strncpy_s(strDest, strSource, size) strncpy_s(strDest, size, strSource, _TRUNCATE)
+#endif
 
 #ifndef SWOS_TEST
 # define sprintf_s(...) static_assert(false, "sprintf_s detected, use snprintf instead!")

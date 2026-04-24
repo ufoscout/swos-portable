@@ -38,7 +38,7 @@ static inline int sgn(int num) {
     return num < 0 ? -1 : 1;
 }
 
-#if __ANDROID_API__ < 21
+#if defined(__ANDROID__) && __ANDROID_API__ < 21
 static inline char *stpcpy(char *dest, const char *src)
 {
     while (*dest++ = *src++)

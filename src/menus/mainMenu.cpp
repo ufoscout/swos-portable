@@ -84,8 +84,10 @@ constexpr char kQuitToOS[] = "QUIT TO "
 "WINDOWS";
 #elif defined(__ANDROID__)
 "ANDROID";
+#elif defined(__APPLE__)
+"MACOS";
 #else
-# error "Define OS name"
+"LINUX";
 #endif
 
 #include "quit.mnu.h"

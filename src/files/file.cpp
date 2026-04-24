@@ -302,7 +302,7 @@ bool createDir(const char *path)
     path = ((storagePath += getDirSeparator()) += path).c_str();
     bool result = mkdir(path, S_IRWXU) == 0;
 #else
-# error Please implement platform specific createDir()
+    bool result = mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) == 0;
 #endif
 
     if (!result)
